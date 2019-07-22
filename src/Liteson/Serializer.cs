@@ -84,6 +84,9 @@ namespace Liteson
                             case "decimal":
                                 sb.Append($"{((decimal)val).ToString(_culture)}{Separator[0]}");
                                 break;
+                            case "date":
+                                sb.Append($"{((decimal)val).ToString(_culture)}{Separator[0]}");
+                                break;
                         }
                         continue;
                     }

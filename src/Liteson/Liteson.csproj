@@ -11,10 +11,11 @@
     <PackageIconUrl>https://raw.githubusercontent.com/efaruk/liteson/master/doc/logo.svg</PackageIconUrl>
     <RepositoryUrl>https://github.com/efaruk/liteson</RepositoryUrl>
     <PackageTags>database text minified simple</PackageTags>
+    <Version>1.0.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SlowMember" Version="1.1.4" />
+    <PackageReference Include="SlowMember" Version="1.1.5" />
   </ItemGroup>
 
 </Project>

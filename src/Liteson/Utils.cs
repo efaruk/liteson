@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
-using System.Text;
 
 namespace Liteson
 {
@@ -50,7 +49,6 @@ namespace Liteson
                 { typeof(Uri), PrimitiveTypeCode.Uri },
                 { typeof(string), PrimitiveTypeCode.String },
                 { typeof(byte[]), PrimitiveTypeCode.Bytes },
-                { typeof(DBNull), PrimitiveTypeCode.DBNull }
             };
 
         public static PrimitiveTypeCode GetTypeCode(Type t)
@@ -137,6 +135,6 @@ namespace Liteson
         Uri = 38,
         String = 39,
         Bytes = 40,
-        DBNull = 41
+        //DBNull = 41
     }
 }

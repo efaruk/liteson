@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -15,14 +16,14 @@ namespace Liteson
         T Deserialize<T>(string data);
     }
 
-    public class LitesonSerializer: ITextSerializer
+    public class LitesonSerializer : ITextSerializer
     {
         private readonly CultureInfo _culture;
         private ReflectionService _reflectionService;
         private const string NewLine = "\n";
         private const char SeparatorChar = '|';
         private static readonly char[] Separator = { SeparatorChar };
-        
+
 
         public LitesonSerializer(CultureInfo culture)
         {
@@ -34,33 +35,77 @@ namespace Liteson
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj), "Values can not be null");
             var objDesc = _reflectionService.GetObjectDescription(typeof(T));
-            if (objDesc?.MemberDescriptions == null || !objDesc.MemberDescriptions.Any()) return null;
             var sb = new StringBuilder(NewLine, objDesc.MemberDescriptions.Count);
-            if (objDesc.Type.IsClass)
+            if (objDesc.IsEnumerable)
             {
+                // Serialize List<TRow>
+                var enumerable = (IEnumerable) obj;
+                foreach (var e in enumerable)
+                {
+                    var edata = Serialize(e, excludes);
+                    sb.Append($"{NewLine}{edata}");
+                }
+            }
+            else
+            {
+                if (objDesc?.MemberDescriptions == null || !objDesc.MemberDescriptions.Any()) return null;
+                // Serialize TRow
                 var fieldsNProps = objDesc.MemberDescriptions.Where(d =>
                     d.MemberType.MemberType == MemberTypes.Field || d.MemberType.MemberType == MemberTypes.Property);
                 foreach (var memDesc in fieldsNProps)
                 {
                     if (excludes != null && excludes.Contains(memDesc.Name)) continue;
-                    if (memDesc.MemberType.IsAbstract 
-                        || memDesc.MemberType.IsGenericType 
-                        || memDesc.MemberType.IsInterface 
+                    if (memDesc.IsEnumerable 
+                        || memDesc.MemberType.IsAbstract
+                        || memDesc.MemberType.IsGenericType
+                        || memDesc.MemberType.IsInterface
                         || memDesc.MemberType.IsNested
                         || memDesc.MemberType.IsSealed) continue;
                     var val = memDesc.GetValue(obj);
-                    if (memDesc.MemberType.IsClass)
-                    {
-                        sb.Append(memDesc.MemberType == typeof(string)
-                            ? $"{val}{SeparatorChar}"
-                            : Serialize(val, excludes));
-                        continue;
-                    }
                     if (memDesc.MemberType.IsEnum)
                     {
                         sb.Append($"{val}{Separator[0]}");
                         continue;
                     }
+                    var typeCode = Utils.GetTypeCode(memDesc.MemberType);
+                    switch (typeCode)
+                    {
+                        
+                        case PrimitiveTypeCode.Boolean:
+                        case PrimitiveTypeCode.BooleanNullable:
+                        case PrimitiveTypeCode.Byte:
+                        case PrimitiveTypeCode.Bytes:
+                        case PrimitiveTypeCode.Char:
+                        case PrimitiveTypeCode.DateTime:
+                        case PrimitiveTypeCode.DateTimeOffset:
+                        case PrimitiveTypeCode.Decimal:
+                        case PrimitiveTypeCode.Double:
+                        case PrimitiveTypeCode.Guid:
+                        
+                        case PrimitiveTypeCode.Object:
+                        case PrimitiveTypeCode.SByte:
+                        case PrimitiveTypeCode.Single:
+                        case PrimitiveTypeCode.String:
+                        case PrimitiveTypeCode.TimeSpan:
+                        
+                        case PrimitiveTypeCode.Uri:
+                            break;
+                        
+
+                        case PrimitiveTypeCode.Int16:
+                        case PrimitiveTypeCode.Int32:
+                        case PrimitiveTypeCode.Int64:
+                        case PrimitiveTypeCode.UInt16:
+                        case PrimitiveTypeCode.UInt32:
+                        case PrimitiveTypeCode.UInt64:
+                        case PrimitiveTypeCode.BigInteger:
+                        case PrimitiveTypeCode.BigIntegerNullable:
+                            sb.Append($"{val}{Separator[0]}");
+                            break;
+                        case PrimitiveTypeCode.DBNull:
+                            break;
+                    }
+                    
                     if (memDesc.MemberType.IsValueType)
                     {
                         switch (memDesc.MemberType.Name.ToLowerInvariant())
@@ -90,18 +135,15 @@ namespace Liteson
                         }
                         continue;
                     }
-
-                    if (memDesc.IsEnumerable)
+                    
+                    if (memDesc.MemberType == typeof(string))
                     {
-                        var enumerable = (IEnumerable<object>)val;
-                        foreach (var o in enumerable)
-                        {
-                            
-                        }
+                        sb.Append($"{val}{SeparatorChar}");
+                        continue;
                     }
                 }
             }
-
+            
             var data = sb.ToString().TrimEnd('|');
 
             return sb.ToString();
@@ -111,5 +153,9 @@ namespace Liteson
         {
             throw new NotImplementedException();
         }
+
+        
     }
+
+    
 }

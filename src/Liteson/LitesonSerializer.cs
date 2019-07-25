@@ -16,8 +16,12 @@ namespace Liteson
         private readonly ReflectionService _reflectionService;
         private const char NewLineChar = '\n';
         private static readonly char[] NewLineSeparator = { NewLineChar };
-        private const char SeparatorChar = '|';
-        private static readonly char[] Separator = { SeparatorChar };
+        //private const char ColumnSeparatorChar = '|';
+        private static readonly char[] ColumnSeparator = { '<', '|', '>' };
+        private static readonly string ColumnSeparatorString = new string(ColumnSeparator);
+        //private const char FieldSeperatorChar = '`';
+        private static readonly char[] FieldSeperator = { '<', '@', '>' };
+        private static readonly string FieldSeperatorString = new string(FieldSeperator);
         private const string NullString = "null";
 
         public LitesonSerializer(CultureInfo culture)
@@ -50,16 +54,20 @@ namespace Liteson
             {
                 var memDesc = objDesc.MemberDescriptions[i];
                 if (excludes != null && excludes.Contains(memDesc.Name)) continue;
+                if (memDesc.IsEnumerable)
+                {
+
+                }
                 var val = memDesc.GetValue(row);
                 if (val == null)
                 {
-                    sb.Append($"{NullString}{SeparatorChar}");
+                    sb.Append($"{NullString}{ColumnSeparatorString}");
                     continue;
                 }
 
                 if (memDesc.Type.IsEnum)
                 {
-                    sb.Append($"\"{val}\"{SeparatorChar}");
+                    sb.Append($"\"{val}\"{ColumnSeparatorString}");
                     continue;
                 }
                 var typeCode = Utils.GetTypeCode(memDesc.Type);
@@ -147,10 +155,10 @@ namespace Liteson
                         break;
                 }
 
-                sb.Append($"{valueString}{SeparatorChar}");
+                sb.Append($"{valueString}{ColumnSeparatorString}");
             }
 
-            return sb.ToString().TrimEnd('|');
+            return sb.ToString().TrimEnd(ColumnSeparator);
         }
 
         public List<TRow> DeserializeRows<TRow>(string data, List<string> excludes = null) where TRow : class, new()
@@ -172,7 +180,7 @@ namespace Liteson
                 throw new ArgumentNullException(nameof(line), "Liteson data can not be null or empty");
             var objDesc = _reflectionService.GetObjectDescription(typeof(TRow));
             if (objDesc?.MemberDescriptions == null || !objDesc.MemberDescriptions.Any()) return null;
-            var rowValues = line.Split(Separator, StringSplitOptions.RemoveEmptyEntries);
+            var rowValues = line.Split(ColumnSeparator, StringSplitOptions.RemoveEmptyEntries);
             for (int i = 0; i < objDesc.MemberDescriptions.Count; i++)
             {
                 var memDesc = objDesc.MemberDescriptions[i];

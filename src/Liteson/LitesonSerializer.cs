@@ -54,11 +54,18 @@ namespace Liteson
             {
                 var memDesc = objDesc.MemberDescriptions[i];
                 if (excludes != null && excludes.Contains(memDesc.Name)) continue;
+                var val = memDesc.GetValue(row);
                 if (memDesc.IsEnumerable)
                 {
-
+                    var enumerable = (IEnumerable)val;
+                    foreach (var item in enumerable)
+                    {
+                        var fieldString = SerializeField(item, excludes);
+                        sb.Append($"{fieldString}{FieldSeperatorString}");
+                    }
+                    sb.Append($"{ColumnSeparatorString}");
+                    continue;
                 }
-                var val = memDesc.GetValue(row);
                 if (val == null)
                 {
                     sb.Append($"{NullString}{ColumnSeparatorString}");
@@ -67,98 +74,129 @@ namespace Liteson
 
                 if (memDesc.Type.IsEnum)
                 {
-                    sb.Append($"\"{val}\"{ColumnSeparatorString}");
+                    sb.Append($"{val}{ColumnSeparatorString}");
                     continue;
                 }
                 var typeCode = Utils.GetTypeCode(memDesc.Type);
-                var valueString = NullString;
-                switch (typeCode)
-                {
-                    case PrimitiveTypeCode.Char:
-                    case PrimitiveTypeCode.CharNullable:
-                        valueString = ((char)val).ToString();
-                        break;
-                    case PrimitiveTypeCode.Single:
-                    case PrimitiveTypeCode.SingleNullable:
-                        valueString = ((float)val).ToString("R", _culture);
-                        break;
-                    case PrimitiveTypeCode.Double:
-                    case PrimitiveTypeCode.DoubleNullable:
-                        valueString = ((double)val).ToString("R", _culture);
-                        break;
-                    case PrimitiveTypeCode.Decimal:
-                    case PrimitiveTypeCode.DecimalNullable:
-                        valueString = ((decimal)val).ToString(_culture);
-                        break;
-                    case PrimitiveTypeCode.Guid:
-                    case PrimitiveTypeCode.GuidNullable:
-                    case PrimitiveTypeCode.String:
-                    case PrimitiveTypeCode.Uri:
-                        valueString = val.ToString();
-                        break;
-                    case PrimitiveTypeCode.DateTime:
-                    case PrimitiveTypeCode.DateTimeNullable:
-                        valueString = ((DateTime)val).ToString("O");
-                        break;
-                    case PrimitiveTypeCode.DateTimeOffset:
-                    case PrimitiveTypeCode.DateTimeOffsetNullable:
-                        valueString = ((DateTimeOffset)val).ToString("O");
-                        break;
-                    case PrimitiveTypeCode.TimeSpan:
-                    case PrimitiveTypeCode.TimeSpanNullable:
-                        valueString = ((TimeSpan)val).Ticks.ToString();
-                        break;
-                    case PrimitiveTypeCode.Boolean:
-                    case PrimitiveTypeCode.BooleanNullable:
-                        valueString = ((bool)val).ToString();
-                        break;
-                    case PrimitiveTypeCode.Byte:
-                    case PrimitiveTypeCode.ByteNullable:
-                        valueString = ((byte)val).ToString();
-                        break;
-                    case PrimitiveTypeCode.SByte:
-                    case PrimitiveTypeCode.SByteNullable:
-                        valueString = ((sbyte)val).ToString();
-                        break;
-                    case PrimitiveTypeCode.Int16:
-                    case PrimitiveTypeCode.Int16Nullable:
-                        valueString = ((short)val).ToString();
-                        break;
-                    case PrimitiveTypeCode.Int32:
-                    case PrimitiveTypeCode.Int32Nullable:
-                        valueString = ((int) val).ToString();
-                        break;
-                    case PrimitiveTypeCode.Int64:
-                    case PrimitiveTypeCode.Int64Nullable:
-                        valueString = ((long)val).ToString();
-                        break;
-                    case PrimitiveTypeCode.UInt16:
-                    case PrimitiveTypeCode.UInt16Nullable:
-                        valueString = ((ushort)val).ToString();
-                        break;
-                    case PrimitiveTypeCode.UInt32:
-                    case PrimitiveTypeCode.UInt32Nullable:
-                        valueString = ((uint)val).ToString();
-                        break;
-                    case PrimitiveTypeCode.UInt64:
-                    case PrimitiveTypeCode.UInt64Nullable:
-                        valueString = ((ulong)val).ToString();
-                        break;
-                    case PrimitiveTypeCode.BigInteger:
-                    case PrimitiveTypeCode.BigIntegerNullable:
-                        valueString = ((BigInteger)val).ToString();
-                        break;
-                    case PrimitiveTypeCode.Bytes:
-                        valueString = Encoding.UTF8.GetString((byte[])val);
-                        break;
-                    case PrimitiveTypeCode.Object:
-                        break;
-                }
-
+                var valueString = GetValueString(typeCode, val);
                 sb.Append($"{valueString}{ColumnSeparatorString}");
             }
-
             return sb.ToString().TrimEnd(ColumnSeparator);
+        }
+
+        
+
+        private string SerializeField<TField>(TField field, List<string> excludes = null)
+        {
+            if (field == null) throw new ArgumentNullException(nameof(field), "Values can not be null");
+            var fieldDesc = _reflectionService.GetObjectDescription(field.GetType());
+            var fieldTypeCode = Utils.GetTypeCode(fieldDesc.Type);
+            var valueString = NullString;
+            if (fieldDesc.MemberDescriptions == null || !fieldDesc.MemberDescriptions.Any())
+            {
+                //Simple type
+                valueString = GetValueString(fieldTypeCode, field);
+            }
+            else
+            {
+                var sb = new StringBuilder(fieldDesc.MemberDescriptions.Count);
+                for (var i = 0; i < fieldDesc.MemberDescriptions.Count; i++)
+                {
+                    var memDesc = fieldDesc.MemberDescriptions[i];
+                    var fieldValue = memDesc.GetValue(field);
+                    var subFieldTypeCode = Utils.GetTypeCode(fieldDesc.Type);
+                }
+            }
+            return valueString;
+        }
+
+        private string GetValueString(PrimitiveTypeCode typeCode, object val)
+        {
+            // Serialize Value Types
+            var valueString = NullString;
+            switch (typeCode)
+            {
+                case PrimitiveTypeCode.Char:
+                case PrimitiveTypeCode.CharNullable:
+                    valueString = ((char)val).ToString();
+                    break;
+                case PrimitiveTypeCode.Single:
+                case PrimitiveTypeCode.SingleNullable:
+                    valueString = ((float)val).ToString("R", _culture);
+                    break;
+                case PrimitiveTypeCode.Double:
+                case PrimitiveTypeCode.DoubleNullable:
+                    valueString = ((double)val).ToString("R", _culture);
+                    break;
+                case PrimitiveTypeCode.Decimal:
+                case PrimitiveTypeCode.DecimalNullable:
+                    valueString = ((decimal)val).ToString(_culture);
+                    break;
+                case PrimitiveTypeCode.Guid:
+                case PrimitiveTypeCode.GuidNullable:
+                case PrimitiveTypeCode.String:
+                case PrimitiveTypeCode.Uri:
+                    valueString = val.ToString();
+                    break;
+                case PrimitiveTypeCode.DateTime:
+                case PrimitiveTypeCode.DateTimeNullable:
+                    valueString = ((DateTime)val).ToString("O");
+                    break;
+                case PrimitiveTypeCode.DateTimeOffset:
+                case PrimitiveTypeCode.DateTimeOffsetNullable:
+                    valueString = ((DateTimeOffset)val).ToString("O");
+                    break;
+                case PrimitiveTypeCode.TimeSpan:
+                case PrimitiveTypeCode.TimeSpanNullable:
+                    valueString = ((TimeSpan)val).Ticks.ToString();
+                    break;
+                case PrimitiveTypeCode.Boolean:
+                case PrimitiveTypeCode.BooleanNullable:
+                    valueString = ((bool)val).ToString();
+                    break;
+                case PrimitiveTypeCode.Byte:
+                case PrimitiveTypeCode.ByteNullable:
+                    valueString = ((byte)val).ToString();
+                    break;
+                case PrimitiveTypeCode.SByte:
+                case PrimitiveTypeCode.SByteNullable:
+                    valueString = ((sbyte)val).ToString();
+                    break;
+                case PrimitiveTypeCode.Int16:
+                case PrimitiveTypeCode.Int16Nullable:
+                    valueString = ((short)val).ToString();
+                    break;
+                case PrimitiveTypeCode.Int32:
+                case PrimitiveTypeCode.Int32Nullable:
+                    valueString = ((int)val).ToString();
+                    break;
+                case PrimitiveTypeCode.Int64:
+                case PrimitiveTypeCode.Int64Nullable:
+                    valueString = ((long)val).ToString();
+                    break;
+                case PrimitiveTypeCode.UInt16:
+                case PrimitiveTypeCode.UInt16Nullable:
+                    valueString = ((ushort)val).ToString();
+                    break;
+                case PrimitiveTypeCode.UInt32:
+                case PrimitiveTypeCode.UInt32Nullable:
+                    valueString = ((uint)val).ToString();
+                    break;
+                case PrimitiveTypeCode.UInt64:
+                case PrimitiveTypeCode.UInt64Nullable:
+                    valueString = ((ulong)val).ToString();
+                    break;
+                case PrimitiveTypeCode.BigInteger:
+                case PrimitiveTypeCode.BigIntegerNullable:
+                    valueString = ((BigInteger)val).ToString();
+                    break;
+                case PrimitiveTypeCode.Bytes:
+                    valueString = Encoding.UTF8.GetString((byte[])val);
+                    break;
+                case PrimitiveTypeCode.Object:
+                    break;
+            }
+            return valueString;
         }
 
         public List<TRow> DeserializeRows<TRow>(string data, List<string> excludes = null) where TRow : class, new()

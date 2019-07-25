@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Numerics;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -26,11 +27,14 @@ namespace Liteson.Tests
             }
             _database = new LitesonDatabase(Culture, DbPath);
             SomeClassList.Clear();
+            var rnd = new Random(1);
             for (int i = 0; i < 1000; i++)
             {
-                var someClass = new SomeClass();
+                var someClass = new SomeClass(rnd.Next(1, 30));
                 if (i % 2 == 0)
                 {
+                    someClass.SomeEnum = SomeEnum.Five;
+                    someClass.SomeEnumN = SomeEnum.Zero;
                     someClass.TimeSpan = new TimeSpan(long.MaxValue);
                     someClass.TimeSpanN = new TimeSpan(long.MinValue);
                     someClass.BigInteger = i * int.MaxValue;
@@ -74,6 +78,8 @@ namespace Liteson.Tests
                 }
                 else if (i % 3 == 0)
                 {
+                    someClass.SomeEnum = SomeEnum.Zero;
+                    someClass.SomeEnumN = null;
                     someClass.TimeSpan = TimeSpan.Zero;
                     someClass.TimeSpanN = null;
                     someClass.BigInteger = i * long.MaxValue;
@@ -117,6 +123,8 @@ namespace Liteson.Tests
                 }
                 else
                 {
+                    someClass.SomeEnum = SomeEnum.One;
+                    someClass.SomeEnumN = SomeEnum.Zero;
                     someClass.TimeSpan = TimeSpan.Zero;
                     someClass.TimeSpanN = new TimeSpan(long.MinValue);
                     someClass.BigInteger = i * long.MaxValue;
@@ -176,6 +184,8 @@ namespace Liteson.Tests
                 Assert.AreEqual(someClass.Guid, row.Guid);
                 Assert.AreEqual(someClass.GuidN, row.GuidN);
 
+                Assert.AreEqual(someClass.SomeEnum, row.SomeEnum);
+                Assert.AreEqual(someClass.SomeEnumN, row.SomeEnumN);
                 Assert.AreEqual(someClass.TimeSpan, row.TimeSpan);
                 Assert.AreEqual(someClass.TimeSpanN, row.TimeSpanN);
                 Assert.AreEqual(someClass.BigInteger, row.BigInteger);
@@ -213,6 +223,14 @@ namespace Liteson.Tests
                 Assert.AreEqual(someClass.UshortN, row.UshortN);
                 Assert.AreEqual(someClass.Strinig, row.Strinig);
                 Assert.AreEqual(someClass.Uri, row.Uri);
+                // Check Column Fields
+                for (int j = 0; j < someClass.SubClasses.Count; j++)
+                {
+                    Assert.AreEqual(someClass.SubClasses[i].Key, row.SubClasses[i].Key);
+                    Assert.AreEqual(someClass.SubClasses[i].Value, row.SubClasses[i].Value);
+                }
+                // Check Column Fields
+                CollectionAssert.AreEqual(someClass.StringList, row.StringList);
             }
         }
 
@@ -223,8 +241,22 @@ namespace Liteson.Tests
     {
         public SomeClass()
         {
-            SubClasses = new List<SubClass>(10);
         }
+
+        public SomeClass(int maxItems)
+        {
+            SubClasses = new List<SubClass>(maxItems);
+            StringList = new List<string>(maxItems);
+            for (int i = 0; i <= maxItems; i++)
+            {
+                var sc = new SubClass {Key = i, Value = $"Value{i}"};
+                SubClasses.Add(sc);
+                StringList.Add(sc.Value);
+            }
+        }
+
+        public SomeEnum SomeEnum { get; set; }
+        public SomeEnum? SomeEnumN { get; set; }
 
         public char Char { get; set; }
         public char? CharN { get; set; }
@@ -267,13 +299,23 @@ namespace Liteson.Tests
         public Uri Uri { get; set; }
 
         public List<SubClass> SubClasses { get; set; }
+        public List<string> StringList { get; set; }
     }
 
     public class SubClass
     {
-        public string Caption { get; set; }
+        public int Key { get; set; }
 
-        public int Description { get; set; }
+        public string Value { get; set; }
+    }
 
+    public enum SomeEnum
+    {
+        Zero=0,
+        One=1,
+        Two=2,
+        Three=3,
+        Four=4,
+        Five=5
     }
 }

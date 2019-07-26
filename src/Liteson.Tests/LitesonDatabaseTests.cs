@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
@@ -12,7 +14,7 @@ namespace Liteson.Tests
     [TestClass]
     public class LitesonDatabaseTests
     {
-        private static readonly  CultureInfo Culture = new CultureInfo("tr-tr");
+        private static readonly CultureInfo Culture = new CultureInfo("tr-tr");
         private static readonly List<SomeClass> SomeClassList = new List<SomeClass>(short.MaxValue);
         private static readonly string DbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "LitesonDb");
         public const string TableName = nameof(SomeClass);
@@ -21,6 +23,7 @@ namespace Liteson.Tests
         [ClassInitialize]
         public static void FixtureSetup(TestContext testContext)
         {
+            Trace.Listeners.Add(new DefaultTraceListener());
             if (Directory.Exists(DbPath))
             {
                 Directory.Delete(DbPath, true);
@@ -234,7 +237,31 @@ namespace Liteson.Tests
             }
         }
 
-
+        [TestMethod]
+        public void LearnTypes()
+        {
+            var stringArray = new[] { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+            var strinList = stringArray.ToList();
+            var subClassList = new List<SubClass>
+            {
+                new SubClass() { Key = 0, Value = "Value" },
+                new SubClass() { Key = 1, Value = "Value" },
+                new SubClass() { Key = 2, Value = "Value" },
+                new SubClass() { Key = 3, Value = "Value" },
+                new SubClass() { Key = 4, Value = "Value" },
+                new SubClass() { Key = 5, Value = "Value" },
+                new SubClass() { Key = 6, Value = "Value" },
+                new SubClass() { Key = 7, Value = "Value" },
+                new SubClass() { Key = 8, Value = "Value" },
+                new SubClass() { Key = 9, Value = "Value" }
+            };
+            var stringArrayType = stringArray.GetType();
+            var stringListType = strinList.GetType();
+            var subClassListType = subClassList.GetType();
+            Trace.WriteLine($"String Array: Type={stringArrayType.Name}, IsEnumerable={stringArrayType.GetInterface("IEnumerable")} IsArray={stringArrayType.IsArray}, GenericType={stringArrayType.GenericTypeArguments?[0]}");
+            Trace.WriteLine($"String Array: Type={stringListType.Name}, IsEnumerable={stringListType.GetInterface("IEnumerable")} IsArray={stringListType.IsArray}, GenericType={stringListType.GenericTypeArguments?[0]}");
+            Trace.WriteLine($"String Array: Type={subClassListType.Name}, IsEnumerable={subClassListType.GetInterface("IEnumerable")} IsArray={subClassListType.IsArray}, GenericType={stringListType.GenericTypeArguments?[0]}");
+        }
     }
 
     public class SomeClass
@@ -249,7 +276,7 @@ namespace Liteson.Tests
             StringList = new List<string>(maxItems);
             for (int i = 0; i <= maxItems; i++)
             {
-                var sc = new SubClass {Key = i, Value = $"Value{i}"};
+                var sc = new SubClass { Key = i, Value = $"Value{i}" };
                 SubClasses.Add(sc);
                 StringList.Add(sc.Value);
             }
@@ -311,11 +338,11 @@ namespace Liteson.Tests
 
     public enum SomeEnum
     {
-        Zero=0,
-        One=1,
-        Two=2,
-        Three=3,
-        Four=4,
-        Five=5
+        Zero = 0,
+        One = 1,
+        Two = 2,
+        Three = 3,
+        Four = 4,
+        Five = 5
     }
 }

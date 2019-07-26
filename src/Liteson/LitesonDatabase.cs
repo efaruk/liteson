@@ -17,7 +17,7 @@ namespace Liteson
         public LitesonDatabase(CultureInfo culture, string databasePath)
         {
             Culture = culture ?? throw new ArgumentNullException(nameof(culture));
-            if (string.IsNullOrWhiteSpace(databasePath)) throw  new ArgumentNullException(nameof(databasePath));
+            if (string.IsNullOrWhiteSpace(databasePath)) throw new ArgumentNullException(nameof(databasePath));
             _databasePath = databasePath;
             if (!Directory.Exists(_databasePath))
             {
@@ -28,7 +28,7 @@ namespace Liteson
 
         public CultureInfo Culture { get; }
 
-        private void LockedAction(Action action)
+        private static void LockedAction(Action action)
         {
             ReadWriteLock.EnterWriteLock();
             try
@@ -41,7 +41,7 @@ namespace Liteson
             }
         }
 
-        private T LockedFunc<T>(Func<T> func)
+        private static T LockedFunc<T>(Func<T> func)
         {
             ReadWriteLock.EnterWriteLock();
             try
@@ -73,7 +73,8 @@ namespace Liteson
 
         public void DropTable(string tableName)
         {
-            LockedAction(() => {
+            LockedAction(() =>
+            {
                 var tableFilePath = GetTableFilePath(tableName);
                 if (File.Exists(tableFilePath))
                 {
@@ -88,14 +89,14 @@ namespace Liteson
             return Path.Combine(_databasePath, tableFileName);
         }
 
-        public void Insert<TRow>(string tableName, TRow row) where TRow: class, new()
+        public void Insert<TRow>(string tableName, TRow row) where TRow : class, new()
         {
             LockedAction(() =>
             {
+                var rowSting = _serializer.SerializeRow(row);
+                if (string.IsNullOrWhiteSpace(rowSting)) return;
                 var tableFilePath = GetTableFilePath(tableName);
-                var valueText = _serializer.SerializeRow(row);
-                if (string.IsNullOrWhiteSpace(valueText)) return;
-                File.AppendAllText(tableFilePath, valueText);
+                File.AppendAllText(tableFilePath, rowSting);
             });
         }
 
@@ -105,33 +106,26 @@ namespace Liteson
             throw TableNotFoundException(tableFilePath);
         }
 
-        public List<TRow> ReadTable<TRow>(string tableName) where TRow: class, new()
+        public List<TRow> ReadTable<TRow>(string tableName) where TRow : class, new()
         {
             return LockedFunc(() =>
             {
                 var tableFilePath = GetTableFilePath(tableName);
-                if (CheckTableExists(tableFilePath))
-                {
-                    var data = File.ReadAllText(tableFilePath);
-                    if (data.Length == 0)
-                    {
-                        return null;
-                    }
-                    var table = _serializer.DeserializeRows<TRow>(data);
-                    return table;
-                }
-                return null;
+                if (!CheckTableExists(tableFilePath)) return null;
+                var tableText = File.ReadAllText(tableFilePath);
+                return string.IsNullOrWhiteSpace(tableText) ? null : _serializer.DeserializeRows<TRow>(tableText);
             });
         }
 
-        public void AppendTable<TRow>(string tableName, List<TRow> rows) where TRow: class, new()
+        public void AppendTable<TRow>(string tableName, List<TRow> rows) where TRow : class, new()
         {
             LockedAction(() =>
             {
-                if (rows == null || !rows.Any()) throw new ArgumentNullException(nameof(rows), "Rows can not be null or empty");
+                if (rows == null || !rows.Any()) return;
+                var rowsString = _serializer.SerializeRows(rows);
+                if (string.IsNullOrWhiteSpace(rowsString)) return;
                 var tableFilePath = GetTableFilePath(tableName);
-                var data = _serializer.SerializeRows(rows);
-                File.AppendAllText(tableFilePath, data);
+                File.AppendAllText(tableFilePath, rowsString);
             });
         }
     }

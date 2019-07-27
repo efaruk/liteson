@@ -12,9 +12,9 @@ namespace Liteson
         private readonly string _databasePath;
         private static readonly ReaderWriterLockSlim ReadWriteLock = new ReaderWriterLockSlim();
         private const string TableFileExtension = ".lson";
-        private readonly LitesonSerializer _serializer;
+        private readonly ITextSerializer _serializer;
 
-        public LitesonDatabase(CultureInfo culture, string databasePath)
+        public LitesonDatabase(CultureInfo culture, string databasePath, ITextSerializer serializer = null)
         {
             Culture = culture ?? throw new ArgumentNullException(nameof(culture));
             if (string.IsNullOrWhiteSpace(databasePath)) throw new ArgumentNullException(nameof(databasePath));
@@ -23,7 +23,7 @@ namespace Liteson
             {
                 Directory.CreateDirectory(_databasePath);
             }
-            _serializer = new LitesonSerializer(culture);
+            _serializer = serializer ?? new LitesonSerializer(culture);
         }
 
         public CultureInfo Culture { get; }

@@ -21,10 +21,10 @@ namespace Liteson
         private readonly char[] _columnSeparator;
         private readonly string _columnSeparatorString;
         //private const char FieldSeperatorChar = '`';
-        private static readonly char[] DefaultFieldSeperator = { '@' };
+        private static readonly char[] DefaultFieldSeperator = { '`' };
         private readonly char[] _fieldSeperator;
         private readonly string _fieldSeperatorString;
-        private static readonly char[] DefaultFieldItemSeperator = { '`' };
+        private static readonly char[] DefaultFieldItemSeperator = { '^' };
         private readonly char[] _fieldItemSeperator;
         private readonly string _fieldItemSeperatorString;
         private const string NullString = "null";
@@ -78,6 +78,7 @@ namespace Liteson
                 }
                 if (memDesc.IsEnumerable)
                 {
+                    // Serialize Fields
                     var enumerable = (IEnumerable) val;
                     var sbf = new StringBuilder();
                     foreach (var item in enumerable)
@@ -125,6 +126,75 @@ namespace Liteson
                 valueString = sb.ToString();
             }
             return valueString;
+        }
+        
+        public List<TRow> DeserializeRows<TRow>(string data, List<string> excludes = null) where TRow : class, new()
+        {
+            if (string.IsNullOrWhiteSpace(data)) return null;
+            var lines = data.Split(NewLineSeparator, StringSplitOptions.RemoveEmptyEntries);
+            var result = new List<TRow>(lines.Length);
+            foreach (var line in lines)
+            {
+                var row = DeserializeRow<TRow>(line);
+                if (row == null) continue;
+                result.Add(row);
+            }
+            return result;
+        }
+
+        public TRow DeserializeRow<TRow>(string line, List<string> excludes = null) where TRow : class, new()
+        {
+            var result = new TRow();
+            if (string.IsNullOrWhiteSpace(line)) return null;
+            var objDesc = _reflectionService.GetObjectDescription(typeof(TRow));
+            if (objDesc?.MemberDescriptions == null || !objDesc.MemberDescriptions.Any()) return null;
+            var rowValues = line.Split(_columnSeparator, StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < objDesc.MemberDescriptions.Count; i++)
+            {
+                var memDesc = objDesc.MemberDescriptions[i];
+                if (excludes != null && excludes.Contains(memDesc.Name)) continue;
+                var valueString = rowValues[i];
+                if (string.IsNullOrWhiteSpace(valueString) || valueString == NullString)
+                {
+                    continue;
+                }
+                if (memDesc.IsEnumerable)
+                {
+                    // CustomListWithFieldsOrProperties<Class> or List<Class> or List<string>
+                    IEnumerable enumerable = null;
+                    var memObjDesc = _reflectionService.GetObjectDescription(memDesc.Type);
+                    if (memObjDesc?.MemberDescriptions == null || !memObjDesc.MemberDescriptions.Any())
+                    {
+                        // Simple IEnumerable
+                        // List<Class> or List<string> or string[], etc.
+                        
+                    }
+                    else
+                    {
+                        // Complex IEnumerable
+                        // CustomListWithFieldsOrProperties<Class>
+                    }
+                    memDesc.SetValue(result, enumerable);
+                    continue;
+                }
+                if (memDesc.Type.IsEnum)
+                {
+                    memDesc.SetValue(result, Enum.Parse(memDesc.Type, valueString, true));
+                    continue;
+                }
+                var typeCode = Utils.GetTypeCode(memDesc.Type);
+                var val = GetValue(typeCode, valueString);
+                if (val != null)
+                {
+                    memDesc.SetValue(result, val);
+                }
+            }
+            return result;
+        }
+
+        private object DeserializeField(string field, List<string> excludes = null)
+        {
+            throw new NotImplementedException();
         }
 
         private string GetValueString(PrimitiveTypeCode typeCode, object val)
@@ -216,162 +286,98 @@ namespace Liteson
             return valueString;
         }
 
-        public List<TRow> DeserializeRows<TRow>(string data, List<string> excludes = null) where TRow : class, new()
-        {
-            if (string.IsNullOrWhiteSpace(data)) throw new ArgumentNullException(nameof(data), "Liteson data can not be null or empty");
-            var lines = data.Split(NewLineSeparator, StringSplitOptions.RemoveEmptyEntries);
-            var result = new List<TRow>(lines.Length);
-            foreach (var line in lines)
-            {
-                var row = DeserializeRow<TRow>(line);
-                if (row == null) continue;
-                result.Add(row);
-            }
-            return result;
-        }
-
-        public TRow DeserializeRow<TRow>(string line, List<string> excludes = null) where TRow : class, new()
-        {
-            var result = new TRow();
-            if (string.IsNullOrWhiteSpace(line)) return null;
-            var objDesc = _reflectionService.GetObjectDescription(typeof(TRow));
-            if (objDesc?.MemberDescriptions == null || !objDesc.MemberDescriptions.Any()) return null;
-            var rowValues = line.Split(_columnSeparator, StringSplitOptions.RemoveEmptyEntries);
-            for (int i = 0; i < objDesc.MemberDescriptions.Count; i++)
-            {
-                var memDesc = objDesc.MemberDescriptions[i];
-                if (excludes != null && excludes.Contains(memDesc.Name)) continue;
-                var valueString = rowValues[i];
-                if (string.IsNullOrWhiteSpace(valueString) || valueString == NullString)
-                {
-                    continue;
-                }
-                if (memDesc.IsEnumerable)
-                {
-                    IEnumerable enumerable = null;
-                    var memObjDesc = _reflectionService.GetObjectDescription(memDesc.Type);
-                    if (memObjDesc?.MemberDescriptions == null || !memObjDesc.MemberDescriptions.Any())
-                    {
-                        // Simple Type
-                    }
-                    else
-                    {
-                        // Complex Type
-                    }
-                    memDesc.SetValue(result, enumerable);
-                    continue;
-                }
-                if (memDesc.Type.IsEnum)
-                {
-                    memDesc.SetValue(result, Enum.Parse(memDesc.Type, valueString, true));
-                    continue;
-                }
-                var typeCode = Utils.GetTypeCode(memDesc.Type);
-                var val = GetValue(typeCode, valueString);
-                if (val != null)
-                {
-                    memDesc.SetValue(result, val);
-                }
-            }
-            return result;
-        }
-
         private object GetValue(PrimitiveTypeCode typeCode, string valueString)
         {
-            object val = null;
+            object result = null;
             switch (typeCode)
             {
                 case PrimitiveTypeCode.Char:
                 case PrimitiveTypeCode.CharNullable:
-                    val = char.Parse(valueString);
+                    result = char.Parse(valueString);
                     break;
                 case PrimitiveTypeCode.Single:
                 case PrimitiveTypeCode.SingleNullable:
-                    val = float.Parse(valueString, _culture);
+                    result = float.Parse(valueString, _culture);
                     break;
                 case PrimitiveTypeCode.Double:
                 case PrimitiveTypeCode.DoubleNullable:
-                    val = double.Parse(valueString, _culture);
+                    result = double.Parse(valueString, _culture);
                     break;
                 case PrimitiveTypeCode.Decimal:
                 case PrimitiveTypeCode.DecimalNullable:
-                    val = decimal.Parse(valueString, _culture);
+                    result = decimal.Parse(valueString, _culture);
                     break;
                 case PrimitiveTypeCode.Guid:
                 case PrimitiveTypeCode.GuidNullable:
-                    val = Guid.Parse(valueString);
+                    result = Guid.Parse(valueString);
                     break;
                 case PrimitiveTypeCode.String:
-                    val = valueString;
+                    result = valueString;
                     break;
                 case PrimitiveTypeCode.Uri:
-                    val = new Uri(valueString);
+                    result = new Uri(valueString);
                     break;
                 case PrimitiveTypeCode.DateTime:
                 case PrimitiveTypeCode.DateTimeNullable:
-                    val = DateTime.Parse(valueString);
+                    result = DateTime.Parse(valueString);
                     break;
                 case PrimitiveTypeCode.DateTimeOffset:
                 case PrimitiveTypeCode.DateTimeOffsetNullable:
-                    val = DateTimeOffset.Parse(valueString);
+                    result = DateTimeOffset.Parse(valueString);
                     break;
                 case PrimitiveTypeCode.TimeSpan:
                 case PrimitiveTypeCode.TimeSpanNullable:
-                    val = new TimeSpan(long.Parse(valueString));
+                    result = new TimeSpan(long.Parse(valueString));
                     break;
                 case PrimitiveTypeCode.Boolean:
                 case PrimitiveTypeCode.BooleanNullable:
-                    val = bool.Parse(valueString);
+                    result = bool.Parse(valueString);
                     break;
                 case PrimitiveTypeCode.Byte:
                 case PrimitiveTypeCode.ByteNullable:
-                    val = byte.Parse(valueString);
+                    result = byte.Parse(valueString);
                     break;
                 case PrimitiveTypeCode.SByte:
                 case PrimitiveTypeCode.SByteNullable:
-                    val = sbyte.Parse(valueString);
+                    result = sbyte.Parse(valueString);
                     break;
                 case PrimitiveTypeCode.Int16:
                 case PrimitiveTypeCode.Int16Nullable:
-                    val = short.Parse(valueString);
+                    result = short.Parse(valueString);
                     break;
                 case PrimitiveTypeCode.Int32:
                 case PrimitiveTypeCode.Int32Nullable:
-                    val = int.Parse(valueString);
+                    result = int.Parse(valueString);
                     break;
                 case PrimitiveTypeCode.Int64:
                 case PrimitiveTypeCode.Int64Nullable:
-                    val = long.Parse(valueString);
+                    result = long.Parse(valueString);
                     break;
                 case PrimitiveTypeCode.UInt16:
                 case PrimitiveTypeCode.UInt16Nullable:
-                    val = ushort.Parse(valueString);
+                    result = ushort.Parse(valueString);
                     break;
                 case PrimitiveTypeCode.UInt32:
                 case PrimitiveTypeCode.UInt32Nullable:
-                    val = uint.Parse(valueString);
+                    result = uint.Parse(valueString);
                     break;
                 case PrimitiveTypeCode.UInt64:
                 case PrimitiveTypeCode.UInt64Nullable:
-                    val = ulong.Parse(valueString);
+                    result = ulong.Parse(valueString);
                     break;
                 case PrimitiveTypeCode.BigInteger:
                 case PrimitiveTypeCode.BigIntegerNullable:
-                    val = BigInteger.Parse(valueString);
+                    result = BigInteger.Parse(valueString);
                     break;
                 case PrimitiveTypeCode.Bytes:
-                    val = Encoding.UTF8.GetBytes(valueString);
+                    result = Encoding.UTF8.GetBytes(valueString);
                     break;
                 case PrimitiveTypeCode.Object:
                     break;
             }
-
-            return val;
+            return result;
         }
 
-        private object DeserializeField(object item, List<string> excludes = null)
-        {
-            throw new NotImplementedException();
-        }
+        
     }
 }

@@ -95,7 +95,15 @@ namespace Liteson
                     continue;
                 }
                 var typeCode = Utils.GetTypeCode(memDesc.Type);
-                var valueString = GetValueString(typeCode, val);
+                var valueString = NullString;
+                if (typeCode == PrimitiveTypeCode.Object)
+                {
+
+                }
+                else
+                {
+                    valueString = GetValueString(typeCode, val);
+                }
                 sb.Append($"{valueString}{_columnSeparatorString}");
             }
             return sb.ToString();

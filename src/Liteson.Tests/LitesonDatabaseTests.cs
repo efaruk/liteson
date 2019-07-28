@@ -76,6 +76,9 @@ namespace Liteson.Tests
                     someClass.Ushort = ushort.MaxValue;
                     someClass.UshortN = ushort.MinValue;
 
+                    someClass.SubClass1 = new SubClass() {Key = i+1, Value = $"Value{i+1}"};
+                    someClass.SubClass2 = new SubClass() {Key = i+2, Value = $"Value{i+2}"};
+
                     someClass.Strinig = $"SomeClass({i})";
                     someClass.Uri = new Uri(new Uri("http://www.titaniumsoft.com/"), someClass.Strinig);
                 }
@@ -121,6 +124,9 @@ namespace Liteson.Tests
                     someClass.Ushort = ushort.MaxValue;
                     someClass.UshortN = null;
 
+                    someClass.SubClass1 = new SubClass() {Key = i+1, Value = $"Value{i+1}"};
+                    someClass.SubClass2 = new SubClass() {Key = i+2, Value = $"Value{i+2}"};
+
                     someClass.Strinig = $"SomeClass({i})";
                     someClass.Uri = new Uri(new Uri("http://www.titaniumsoft.com/"), someClass.Strinig);
                 }
@@ -165,6 +171,9 @@ namespace Liteson.Tests
                     someClass.ShortN = short.MinValue;
                     someClass.Ushort = ushort.MaxValue;
                     someClass.UshortN = ushort.MinValue;
+
+                    someClass.SubClass1 = new SubClass() {Key = i+1, Value = $"Value{i+1}"};
+                    someClass.SubClass2 = new SubClass() {Key = i+2, Value = $"Value{i+2}"};
 
                     someClass.Strinig = $"SomeClass({i})";
                     someClass.Uri = new Uri(new Uri("http://www.titaniumsoft.com/"), someClass.Strinig);
@@ -224,13 +233,19 @@ namespace Liteson.Tests
                 Assert.AreEqual(someClass.ShortN, row.ShortN);
                 Assert.AreEqual(someClass.Ushort, row.Ushort);
                 Assert.AreEqual(someClass.UshortN, row.UshortN);
+
+                Assert.AreEqual(someClass.SubClass1.Key, row.SubClass1.Key);
+                Assert.AreEqual(someClass.SubClass1.Value, row.SubClass1.Value);
+                Assert.AreEqual(someClass.SubClass2.Key, row.SubClass2.Key);
+                Assert.AreEqual(someClass.SubClass2.Value, row.SubClass2.Value);
+
                 Assert.AreEqual(someClass.Strinig, row.Strinig);
                 Assert.AreEqual(someClass.Uri, row.Uri);
                 // Check Column Fields
-                for (int j = 0; j < someClass.SubClasses.Count; j++)
+                for (var j = 0; j < someClass.SubClasses.Count; j++)
                 {
-                    Assert.AreEqual(someClass.SubClasses[i].Key, row.SubClasses[i].Key);
-                    Assert.AreEqual(someClass.SubClasses[i].Value, row.SubClasses[i].Value);
+                    Assert.AreEqual(someClass.SubClasses[j].Key, row.SubClasses[j].Key);
+                    Assert.AreEqual(someClass.SubClasses[j].Value, row.SubClasses[j].Value);
                 }
                 // Check Column Fields
                 CollectionAssert.AreEqual(someClass.StringList, row.StringList);
@@ -244,15 +259,15 @@ namespace Liteson.Tests
             var strinList = stringArray.ToList();
             var subClassList = new List<SubClass>
             {
-                new SubClass() { Key = 0, Value = "Value" },
+                new SubClass() { Key = 0, Value = "Value", Strings = stringArray},
                 new SubClass() { Key = 1, Value = "Value" },
-                new SubClass() { Key = 2, Value = "Value" },
+                new SubClass() { Key = 2, Value = "Value", Strings = stringArray },
                 new SubClass() { Key = 3, Value = "Value" },
-                new SubClass() { Key = 4, Value = "Value" },
+                new SubClass() { Key = 4, Value = "Value", Strings = stringArray },
                 new SubClass() { Key = 5, Value = "Value" },
-                new SubClass() { Key = 6, Value = "Value" },
+                new SubClass() { Key = 6, Value = "Value", Strings = stringArray },
                 new SubClass() { Key = 7, Value = "Value" },
-                new SubClass() { Key = 8, Value = "Value" },
+                new SubClass() { Key = 8, Value = "Value", Strings = stringArray },
                 new SubClass() { Key = 9, Value = "Value" }
             };
             var stringArrayType = stringArray.GetType();
@@ -274,9 +289,9 @@ namespace Liteson.Tests
         {
             SubClasses = new List<SubClass>(maxItems);
             StringList = new List<string>(maxItems);
-            for (int i = 0; i <= maxItems; i++)
+            for (var i = 0; i <= maxItems; i++)
             {
-                var sc = new SubClass { Key = i, Value = $"Value{i}" };
+                var sc = new SubClass { Key = i, Value = $"Value{i}", Strings = new [] { DateTime.Now.Millisecond.ToString(), DateTime.Now.Millisecond.ToString(), DateTime.Now.Millisecond.ToString() } };
                 SubClasses.Add(sc);
                 StringList.Add(sc.Value);
             }
@@ -325,6 +340,9 @@ namespace Liteson.Tests
         public string Strinig { get; set; }
         public Uri Uri { get; set; }
 
+        public SubClass SubClass1 { get; set; }
+        public SubClass SubClass2 { get; set; }
+
         public List<SubClass> SubClasses { get; set; }
         public List<string> StringList { get; set; }
     }
@@ -334,6 +352,8 @@ namespace Liteson.Tests
         public int Key { get; set; }
 
         public string Value { get; set; }
+
+        public string[] Strings { get; set; }
     }
 
     public enum SomeEnum

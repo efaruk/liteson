@@ -10,6 +10,7 @@ using SlowMember;
 
 namespace Liteson
 {
+    [Obsolete("Experimental and Not Complete Text Serializer, please wait for updates!")]
     public class LitesonSerializer : ITextSerializer
     {
         private readonly CultureInfo _culture;
@@ -93,19 +94,41 @@ namespace Liteson
             if (field == null) return null;
             var fieldObjDesc = _reflectionService.GetObjectDescription(field.GetType());
             var sb = new StringBuilder(fieldObjDesc.MemberDescriptions.Count);
-            // Serialize Field Members
+            // Serialize Row.ComplexClass
             if (fieldObjDesc.MemberDescriptions != null && fieldObjDesc.MemberDescriptions.Any())
             {
                 var sbf = new StringBuilder();
                 foreach (var md in fieldObjDesc.MemberDescriptions)
                 {
-                    var fieldItemTypeCode = Utils.GetTypeCode(md.Type);
-                    if (fieldItemTypeCode == PrimitiveTypeCode.Object) continue; // Complex Field Items are Not Supported
-                    var fieldItem = md.GetValue(field);
                     var fieldString = NullString;
-                    if (fieldItem != null)
+                    if (md.IsEnumerable)
                     {
-                        fieldString = GetValueString(fieldItemTypeCode, fieldItem);
+                        var elementType = md.Type.HasElementType ? md.Type.GetElementType() : null;
+                        if (elementType != null)
+                        {
+                            var elementTypeCode = Utils.GetTypeCode(elementType);
+                            // Complex Enumerable Field's are not supported
+                            // Row.Member is List<ComplexClass> or ComplexClass[]
+                            if (elementTypeCode == PrimitiveTypeCode.Object) continue;
+                            // Row.Member is List<string> or string[]
+                            // Serialize Simple IEnumerable or value type array
+                            var elementObjDesc = _reflectionService.GetObjectDescription(elementType);
+                            if (elementObjDesc.IsEnumerable)
+                            {
+
+                            }
+                        }
+                    }
+                    else
+                    {
+                        var fieldTypeCode = Utils.GetTypeCode(md.Type);
+                        if (fieldTypeCode == PrimitiveTypeCode.Object) continue; // Complex Field Items are Not Supported
+                        var fieldItem = md.GetValue(field);
+                        
+                        if (fieldItem != null)
+                        {
+                            fieldString = GetValueString(fieldTypeCode, fieldItem);
+                        }
                     }
                     sbf.Append($"{fieldString}{_fieldSeperator}");
                 }
@@ -114,6 +137,7 @@ namespace Liteson
             // ReSharper disable once InvertIf
             if (fieldObjDesc.IsEnumerable)
             {
+                var elementType = fieldObjDesc.Type.HasElementType ? fieldObjDesc.Type.GetElementType() : null;
                 // Serialize Field Items
                 var enumerable = (IEnumerable) field;
                 var sbf = new StringBuilder();

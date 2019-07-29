@@ -28,7 +28,7 @@ namespace Liteson.Tests
             {
                 Directory.Delete(DbPath, true);
             }
-            _database = new LitesonDatabase(Culture, DbPath);
+            _database = new LitesonDatabase(Culture, DbPath, new JsonTextSerializer(Culture));
             SomeClassList.Clear();
             var rnd = new Random(1);
             for (int i = 0; i < 1000; i++)
@@ -55,10 +55,10 @@ namespace Liteson.Tests
                     someClass.DateTimeOffsetN = DateTimeOffset.MinValue;
                     someClass.Decimal = decimal.MaxValue;
                     someClass.DecimalN = decimal.MinValue;
-                    someClass.Double = double.MaxValue;
-                    someClass.DoubleN = double.MinValue;
-                    someClass.Float = float.MaxValue;
-                    someClass.FloatN = float.MinValue;
+                    someClass.Double = double.MaxValue - i;
+                    someClass.DoubleN = double.MinValue + i;
+                    someClass.Float = float.MaxValue - i;
+                    someClass.FloatN = float.MinValue + i;
                     someClass.Guid = Guid.NewGuid();
                     someClass.GuidN = Guid.Empty;
                     someClass.Int = int.MaxValue;
@@ -103,9 +103,9 @@ namespace Liteson.Tests
                     someClass.DateTimeOffsetN = null;
                     someClass.Decimal = decimal.One;
                     someClass.DecimalN = null;
-                    someClass.Double = double.Epsilon;
+                    someClass.Double = double.Epsilon + i;
                     someClass.DoubleN = null;
-                    someClass.Float = float.Epsilon;
+                    someClass.Float = float.Epsilon + i;
                     someClass.FloatN = null;
                     someClass.Guid = Guid.NewGuid();
                     someClass.GuidN = null;
@@ -151,9 +151,9 @@ namespace Liteson.Tests
                     someClass.DateTimeOffsetN = DateTimeOffset.UnixEpoch;
                     someClass.Decimal = decimal.One;
                     someClass.DecimalN = decimal.Zero;
-                    someClass.Double = double.Epsilon;
+                    someClass.Double = double.MaxValue  - i;
                     someClass.DoubleN = double.NaN;
-                    someClass.Float = float.Epsilon;
+                    someClass.Float = float.MaxValue - i;
                     someClass.FloatN = float.NaN;
                     someClass.Guid = Guid.NewGuid();
                     someClass.GuidN = Guid.Empty;
@@ -256,7 +256,7 @@ namespace Liteson.Tests
         public void LearnTypes()
         {
             var stringArray = new[] { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
-            var strinList = stringArray.ToList();
+            var stringList = stringArray.ToList();
             var subClassList = new List<SubClass>
             {
                 new SubClass() { Key = 0, Value = "Value", Strings = stringArray},
@@ -271,7 +271,7 @@ namespace Liteson.Tests
                 new SubClass() { Key = 9, Value = "Value" }
             };
             var stringArrayType = stringArray.GetType();
-            var stringListType = strinList.GetType();
+            var stringListType = stringList.GetType();
             var subClassListType = subClassList.GetType();
             Trace.WriteLine($"String Array: Type={stringArrayType.Name}, IsEnumerable={stringArrayType.GetInterface("IEnumerable")} IsArray={stringArrayType.IsArray}, GenericType={stringArrayType.GenericTypeArguments?[0]}");
             Trace.WriteLine($"String Array: Type={stringListType.Name}, IsEnumerable={stringListType.GetInterface("IEnumerable")} IsArray={stringListType.IsArray}, GenericType={stringListType.GenericTypeArguments?[0]}");

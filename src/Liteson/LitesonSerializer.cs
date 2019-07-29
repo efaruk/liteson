@@ -66,44 +66,23 @@ namespace Liteson
             var objDesc = _reflectionService.GetObjectDescription(typeof(TRow));
             var sb = new StringBuilder(objDesc.MemberDescriptions.Count);
             if (objDesc.MemberDescriptions == null || !objDesc.MemberDescriptions.Any()) return null;
-            // Serialize TRow
+            // Serialize Columns
             foreach (var memDesc in objDesc.MemberDescriptions)
             {
                 if (excludes != null && excludes.Contains(memDesc.Name)) continue;
-                var val = memDesc.GetValue(row);
-                if (val == null)
+                var columnValue = memDesc.GetValue(row);
+                if (columnValue == null)
                 {
                     sb.Append($"{NullString}{_columnSeparatorString}");
                     continue;
                 }
-                if (memDesc.IsEnumerable)
-                {
-                    // Serialize Fields
-                    var enumerable = (IEnumerable) val;
-                    var sbf = new StringBuilder();
-                    foreach (var item in enumerable)
-                    {
-                        var fieldString = SerializeField(item, excludes);
-                        sbf.Append($"{fieldString}{_fieldSeperatorString}");
-                    }
-                    sb.Append($"{sbf}{_columnSeparatorString}");
-                    continue;
-                }
                 if (memDesc.Type.IsEnum)
                 {
-                    sb.Append($"{val}{_columnSeparatorString}");
+                    sb.Append($"{columnValue}{_columnSeparatorString}");
                     continue;
                 }
                 var typeCode = Utils.GetTypeCode(memDesc.Type);
-                var valueString = NullString;
-                if (typeCode == PrimitiveTypeCode.Object)
-                {
-
-                }
-                else
-                {
-                    valueString = GetValueString(typeCode, val);
-                }
+                var valueString = typeCode == PrimitiveTypeCode.Object ? SerializeField(columnValue, excludes) : GetValueString(typeCode, columnValue);
                 sb.Append($"{valueString}{_columnSeparatorString}");
             }
             return sb.ToString();
@@ -112,28 +91,46 @@ namespace Liteson
         private string SerializeField<TField>(TField field, List<string> excludes = null)
         {
             if (field == null) return null;
-            var fieldDesc = _reflectionService.GetObjectDescription(field.GetType());
-            var fieldTypeCode = Utils.GetTypeCode(fieldDesc.Type);
-            string valueString;
-            if (fieldDesc.MemberDescriptions == null || !fieldDesc.MemberDescriptions.Any())
+            var fieldObjDesc = _reflectionService.GetObjectDescription(field.GetType());
+            var sb = new StringBuilder(fieldObjDesc.MemberDescriptions.Count);
+            // Serialize Field Members
+            if (fieldObjDesc.MemberDescriptions != null && fieldObjDesc.MemberDescriptions.Any())
             {
-                //Simple type
-                valueString = GetValueString(fieldTypeCode, field);
-            }
-            else
-            {
-                // Serialize Non-Primitive Field
-                var sb = new StringBuilder(fieldDesc.MemberDescriptions.Count);
-                foreach (var fieldItemDesc in fieldDesc.MemberDescriptions)
+                var sbf = new StringBuilder();
+                foreach (var md in fieldObjDesc.MemberDescriptions)
                 {
-                    var fieldItemValue = fieldItemDesc.GetValue(field);
-                    var fieldItemTypeCode = Utils.GetTypeCode(fieldItemDesc.Type);
-                    var subFieldValueString = GetValueString(fieldItemTypeCode, fieldItemValue);
-                    sb.Append($"{subFieldValueString}{_fieldItemSeperatorString}");
+                    var fieldItem = md.GetValue(field);
+                    var fieldString = NullString;
+                    if (fieldItem != null)
+                    {
+                        var fieldItemTypeCode = Utils.GetTypeCode(md.Type);
+                        if (fieldItemTypeCode == PrimitiveTypeCode.Object) continue; // Complex Field Items are Not Supported
+                        fieldString = GetValueString(fieldItemTypeCode, fieldItem);
+                    }
+                    sbf.Append($"{fieldString}{_fieldSeperator}");
                 }
-                valueString = sb.ToString();
+                sb.Append(sbf);
             }
-            return valueString;
+            if (fieldObjDesc.IsEnumerable)
+            {
+                // Serialize Field Items
+                var enumerable = (IEnumerable) field;
+                var sbf = new StringBuilder();
+                foreach (var fieldItem in enumerable)
+                {
+                    var fieldItemString = NullString;
+                    if (fieldItem != null)
+                    {
+                        var fieldItemTypeCode = Utils.GetTypeCode(fieldItem.GetType());
+                        if (fieldItemTypeCode == PrimitiveTypeCode.Object) continue; // Complex Field Items are Not Supported
+                        fieldItemString = GetValueString(fieldItemTypeCode, fieldItem);
+                    }
+                    sbf.Append($"{fieldItemString}{_fieldItemSeperator}");
+                }
+                sbf.Append(_fieldSeperatorString);
+                sb.Append(sbf);
+            }
+            return sb.ToString();
         }
         
         public List<TRow> DeserializeRows<TRow>(string data, List<string> excludes = null) where TRow : class, new()

@@ -51,6 +51,12 @@ namespace Liteson
                 { typeof(byte[]), PrimitiveTypeCode.Bytes },
             };
 
+        public static PrimitiveTypeCode GetTypeCode<T>(T obj)
+        {
+            var type = GetType(obj);
+            return GetTypeCode(type, out _);
+        }
+
         public static PrimitiveTypeCode GetTypeCode(Type t)
         {
             return GetTypeCode(t, out _);
@@ -89,6 +95,11 @@ namespace Liteson
         public static bool IsNullableType(Type t)
         {
             return (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Nullable<>));
+        }
+
+        public static Type GetType<T>(T obj)
+        {
+            return typeof(T);
         }
     }
 

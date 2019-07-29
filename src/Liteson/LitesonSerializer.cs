@@ -99,18 +99,19 @@ namespace Liteson
                 var sbf = new StringBuilder();
                 foreach (var md in fieldObjDesc.MemberDescriptions)
                 {
+                    var fieldItemTypeCode = Utils.GetTypeCode(md.Type);
+                    if (fieldItemTypeCode == PrimitiveTypeCode.Object) continue; // Complex Field Items are Not Supported
                     var fieldItem = md.GetValue(field);
                     var fieldString = NullString;
                     if (fieldItem != null)
                     {
-                        var fieldItemTypeCode = Utils.GetTypeCode(md.Type);
-                        if (fieldItemTypeCode == PrimitiveTypeCode.Object) continue; // Complex Field Items are Not Supported
                         fieldString = GetValueString(fieldItemTypeCode, fieldItem);
                     }
                     sbf.Append($"{fieldString}{_fieldSeperator}");
                 }
                 sb.Append(sbf);
             }
+            // ReSharper disable once InvertIf
             if (fieldObjDesc.IsEnumerable)
             {
                 // Serialize Field Items
@@ -118,11 +119,11 @@ namespace Liteson
                 var sbf = new StringBuilder();
                 foreach (var fieldItem in enumerable)
                 {
+                    var fieldItemTypeCode = Utils.GetTypeCode(fieldItem);
+                    if (fieldItemTypeCode == PrimitiveTypeCode.Object) continue; // Complex Field Items are Not Supported
                     var fieldItemString = NullString;
                     if (fieldItem != null)
                     {
-                        var fieldItemTypeCode = Utils.GetTypeCode(fieldItem.GetType());
-                        if (fieldItemTypeCode == PrimitiveTypeCode.Object) continue; // Complex Field Items are Not Supported
                         fieldItemString = GetValueString(fieldItemTypeCode, fieldItem);
                     }
                     sbf.Append($"{fieldItemString}{_fieldItemSeperator}");

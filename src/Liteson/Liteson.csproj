@@ -11,14 +11,14 @@
     <PackageIconUrl>https://raw.githubusercontent.com/efaruk/liteson/master/doc/logo.png</PackageIconUrl>
     <RepositoryUrl>https://github.com/efaruk/liteson</RepositoryUrl>
     <PackageTags>database text minified simple</PackageTags>
-    <Version>1.0.4</Version>
-    <AssemblyVersion>1.0.4.0</AssemblyVersion>
+    <Version>1.0.5</Version>
+    <AssemblyVersion>1.0.5.0</AssemblyVersion>
     <PackageReleaseNotes>Embedded text file database with minified file structure for .Net Apps</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
-    <PackageReference Include="SlowMember" Version="1.1.5" />
+    <PackageReference Include="SlowMember" Version="1.1.6" />
   </ItemGroup>
 
 </Project>

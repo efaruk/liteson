@@ -7,6 +7,7 @@ using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Liteson.Tests
@@ -188,6 +189,76 @@ namespace Liteson.Tests
             _database.Drop(TableName);
             _database.BulkInsert(TableName, SomeClassList);
             var table = _database.Read<SomeClass>(TableName);
+            for (int i = 0; i < table.Count; i++)
+            {
+                var row = table[i];
+                var someClass = SomeClassList[i];
+
+                Assert.AreEqual(someClass.Guid, row.Guid);
+                Assert.AreEqual(someClass.GuidN, row.GuidN);
+
+                Assert.AreEqual(someClass.SomeEnum, row.SomeEnum);
+                Assert.AreEqual(someClass.SomeEnumN, row.SomeEnumN);
+                Assert.AreEqual(someClass.TimeSpan, row.TimeSpan);
+                Assert.AreEqual(someClass.TimeSpanN, row.TimeSpanN);
+                Assert.AreEqual(someClass.BigInteger, row.BigInteger);
+                Assert.AreEqual(someClass.BigIntegerN, row.BigIntegerN);
+                Assert.AreEqual(someClass.Bool, row.Bool);
+                Assert.AreEqual(someClass.BoolN, row.BoolN);
+                Assert.AreEqual(someClass.Byte, row.Byte);
+                Assert.AreEqual(someClass.ByteN, row.ByteN);
+                Assert.AreEqual(someClass.Char, row.Char);
+                Assert.AreEqual(someClass.CharN, row.CharN);
+                CollectionAssert.AreEqual(someClass.Bytes, row.Bytes);
+                Assert.AreEqual(someClass.DateTime, row.DateTime);
+                Assert.AreEqual(someClass.DateTimeN, row.DateTimeN);
+                Assert.AreEqual(someClass.DateTimeOffset, row.DateTimeOffset);
+                Assert.AreEqual(someClass.DateTimeOffsetN, row.DateTimeOffsetN);
+                Assert.AreEqual(someClass.Decimal, row.Decimal);
+                Assert.AreEqual(someClass.DecimalN, row.DecimalN);
+                Assert.AreEqual(someClass.Double, row.Double);
+                Assert.AreEqual(someClass.DoubleN, row.DoubleN);
+                Assert.AreEqual(someClass.Float, row.Float);
+                Assert.AreEqual(someClass.FloatN, row.FloatN);
+                Assert.AreEqual(someClass.Int, row.Int);
+                Assert.AreEqual(someClass.IntN, row.IntN);
+                Assert.AreEqual(someClass.Uint, row.Uint);
+                Assert.AreEqual(someClass.UintN, row.UintN);
+                Assert.AreEqual(someClass.Long, row.Long);
+                Assert.AreEqual(someClass.LongN, row.LongN);
+                Assert.AreEqual(someClass.Ulong, row.Ulong);
+                Assert.AreEqual(someClass.UlongN, row.UlongN);
+                Assert.AreEqual(someClass.Sbyte, row.Sbyte);
+                Assert.AreEqual(someClass.SbyteN, row.SbyteN);
+                Assert.AreEqual(someClass.Short, row.Short);
+                Assert.AreEqual(someClass.ShortN, row.ShortN);
+                Assert.AreEqual(someClass.Ushort, row.Ushort);
+                Assert.AreEqual(someClass.UshortN, row.UshortN);
+
+                Assert.AreEqual(someClass.SubClass1.Key, row.SubClass1.Key);
+                Assert.AreEqual(someClass.SubClass1.Value, row.SubClass1.Value);
+                Assert.AreEqual(someClass.SubClass2.Key, row.SubClass2.Key);
+                Assert.AreEqual(someClass.SubClass2.Value, row.SubClass2.Value);
+
+                Assert.AreEqual(someClass.Strinig, row.Strinig);
+                Assert.AreEqual(someClass.Uri, row.Uri);
+                // Check Column Fields
+                for (var j = 0; j < someClass.SubClasses.Count; j++)
+                {
+                    Assert.AreEqual(someClass.SubClasses[j].Key, row.SubClasses[j].Key);
+                    Assert.AreEqual(someClass.SubClasses[j].Value, row.SubClasses[j].Value);
+                }
+                // Check Column Fields
+                CollectionAssert.AreEqual(someClass.StringList, row.StringList);
+            }
+        }
+
+        [TestMethod]
+        public async Task TestAppendNReadAsync()
+        {
+            _database.Drop(TableName);
+            await _database.BulkInsertAsync(TableName, SomeClassList);
+            var table = await _database.ReadAsync<SomeClass>(TableName);
             for (int i = 0; i < table.Count; i++)
             {
                 var row = table[i];

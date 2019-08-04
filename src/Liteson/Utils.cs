@@ -52,11 +52,21 @@ namespace Liteson
                 { typeof(byte[]), PrimitiveTypeCode.Bytes },
             };
 
-        public static void LockedAction(SemaphoreSlim semaphoreLock, Action action, Action<Exception> exceptionHandleAction = null)
+        public static bool AreSame(object currentObject, object oldObject)
         {
+            if (currentObject == null || oldObject == null) return false;
+            return ReferenceEquals(currentObject, oldObject);
+        }
+
+        public static void LockedAction(SemaphoreSlim semaphoreLock, Action action, SemaphoreSlim oldLock = null, Action<Exception> exceptionHandleAction = null)
+        {
+            var sameLock = AreSame(semaphoreLock, oldLock);
             try
             {
-                semaphoreLock.Wait();
+                if (!sameLock)
+                {
+                    semaphoreLock.Wait();
+                }
                 action();
             }
             catch (Exception ex)
@@ -65,15 +75,22 @@ namespace Liteson
             }
             finally
             {
-                semaphoreLock.Release();
+                if (!sameLock)
+                {
+                    semaphoreLock.Release();
+                }
             }
         }
 
-        public static async Task LockedActionAsync(SemaphoreSlim semaphoreLock, Action action, Action<Exception> exceptionHandleAction = null)
+        public static async Task LockedActionAsync(SemaphoreSlim semaphoreLock, Action action, SemaphoreSlim oldLock = null, Action<Exception> exceptionHandleAction = null)
         {
+            var sameLock = AreSame(semaphoreLock, oldLock);
             try
             {
-                await semaphoreLock.WaitAsync();
+                if (!sameLock)
+                {
+                    await semaphoreLock.WaitAsync();
+                }
                 await Task.Run(action);
             }
             catch (Exception ex)
@@ -82,16 +99,23 @@ namespace Liteson
             }
             finally
             {
-                semaphoreLock.Release();
+                if (!sameLock)
+                {
+                    semaphoreLock.Release();
+                }
             }
         }
 
-        public static TResult LockedFunc<TResult>(SemaphoreSlim semaphoreLock, Func<TResult> func, Action<Exception> exceptionHandleAction = null) where TResult: class
+        public static TResult LockedFunc<TResult>(SemaphoreSlim semaphoreLock, Func<TResult> func, SemaphoreSlim oldLock = null, Action<Exception> exceptionHandleAction = null) where TResult: class
         {
+            var sameLock = AreSame(semaphoreLock, oldLock);
             TResult result = null;
             try
             {
-                semaphoreLock.Wait();
+                if (!sameLock)
+                {
+                    semaphoreLock.Wait();
+                }
                 result = func();
             }
             catch (Exception ex)
@@ -100,17 +124,24 @@ namespace Liteson
             }
             finally
             {
-                semaphoreLock.Release();
+                if (!sameLock)
+                {
+                    semaphoreLock.Release();
+                }
             }
             return result;
         }
 
-        public static async Task<TResult> LockedFuncAsync<TResult>(SemaphoreSlim semaphoreLock, Func<TResult> func, Action<Exception> exceptionHandleAction = null) where TResult: class
+        public static async Task<TResult> LockedFuncAsync<TResult>(SemaphoreSlim semaphoreLock, Func<TResult> func, SemaphoreSlim oldLock = null, Action<Exception> exceptionHandleAction = null) where TResult: class
         {
+            var sameLock = AreSame(semaphoreLock, oldLock);
             TResult result = null;
             try
             {
-                await semaphoreLock.WaitAsync();
+                if (!sameLock)
+                {
+                    await semaphoreLock.WaitAsync();
+                }
                 result = await Task.Run(func);
             }
             catch (Exception ex)
@@ -119,7 +150,36 @@ namespace Liteson
             }
             finally
             {
-                semaphoreLock.Release();
+                if (!sameLock)
+                {
+                    semaphoreLock.Release();
+                }
+            }
+            return result;
+        }
+
+        public static async Task<TResult> LockedFuncAsync<TParam, TResult>(SemaphoreSlim semaphoreLock, TParam t1, Func<TParam, Task<TResult>> func, SemaphoreSlim oldLock = null, Action<Exception> exceptionHandleAction = null) where TResult: class
+        {
+            var sameLock = AreSame(semaphoreLock, oldLock);
+            TResult result = null;
+            try
+            {
+                if (!sameLock)
+                {
+                    await semaphoreLock.WaitAsync();
+                }
+                result = await Task.Run(() => func(t1));
+            }
+            catch (Exception ex)
+            {
+                exceptionHandleAction?.Invoke(ex);
+            }
+            finally
+            {
+                if (!sameLock)
+                {
+                    semaphoreLock.Release();
+                }
             }
             return result;
         }

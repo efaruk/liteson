@@ -1,20 +1,26 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Liteson
 {
     public class LitesonDatabase : ITextDatabase
     {
+        private const int DefaultTableCapacity = 1000;
+        public const int DefaultTableRowCapacity = 1000000;
         private readonly string _databasePath;
         private readonly ICacheProvider _cacheProvider;
         //private static readonly ReaderWriterLockSlim ReadWriteLock = new ReaderWriterLockSlim();
-        private readonly SemaphoreSlim _ioLock = new SemaphoreSlim(0,1);
+        //private readonly SemaphoreSlim _ioLock = new SemaphoreSlim(1,1);
+        private readonly ConcurrentDictionary<string, Lazy<SemaphoreSlim>> _locks = new ConcurrentDictionary<string, Lazy<SemaphoreSlim>>(Environment.ProcessorCount, DefaultTableCapacity);
         private const string TableFileExtension = ".lson";
         private readonly ITextSerializer _serializer;
+        
 
         public LitesonDatabase(CultureInfo culture, string databasePath, ITextSerializer serializer = null, ICacheProvider cacheProvider = null)
         {
@@ -25,15 +31,23 @@ namespace Liteson
             {
                 Directory.CreateDirectory(_databasePath);
             }
+#pragma warning disable 618
             _serializer = serializer ?? new LitesonSerializer(culture);
+#pragma warning restore 618
             _cacheProvider = cacheProvider ?? new InMemoryCacheProvider();
+        }
+
+        private SemaphoreSlim GetTableLock(string tableName)
+        {
+            return _locks.GetOrAdd(tableName, tn => new Lazy<SemaphoreSlim>(() => new SemaphoreSlim(1, 1))).Value;
         }
 
         public CultureInfo Culture { get; }
 
         public void Create(string tableName)
         {
-            Utils.LockedAction(_ioLock,() =>
+            var tableLock = GetTableLock(tableName);
+            Utils.LockedAction(tableLock,() =>
             {
                 var tableFilePath = GetTableFilePath(tableName);
                 if (!File.Exists(tableFilePath))
@@ -50,7 +64,8 @@ namespace Liteson
 
         public void Drop(string tableName)
         {
-            Utils.LockedAction(_ioLock,() =>
+            var tableLock = GetTableLock(tableName);
+            Utils.LockedAction(tableLock,() =>
             {
                 var tableFilePath = GetTableFilePath(tableName);
                 if (File.Exists(tableFilePath))
@@ -69,12 +84,26 @@ namespace Liteson
 
         public void Insert<TRow>(string tableName, TRow row) where TRow : class, new()
         {
-            Utils.LockedAction(_ioLock,() =>
+            var tableLock = GetTableLock(tableName);
+            Utils.LockedAction(tableLock,() =>
             {
                 var rowSting = _serializer.SerializeRow(row);
                 if (string.IsNullOrWhiteSpace(rowSting)) return;
                 var tableFilePath = GetTableFilePath(tableName);
                 _cacheProvider.Insert(tableName, row);
+                File.AppendAllText(tableFilePath, rowSting);
+            });
+        }
+
+        public async Task InsertAsync<TRow>(string tableName, TRow row) where TRow : class, new()
+        {
+            var tableLock = GetTableLock(tableName);
+            await Utils.LockedActionAsync(tableLock, async () =>
+            {
+                var rowSting = _serializer.SerializeRow(row);
+                if (string.IsNullOrWhiteSpace(rowSting)) return;
+                var tableFilePath = GetTableFilePath(tableName);
+                await _cacheProvider.InsertAsync(tableName, row);
                 File.AppendAllText(tableFilePath, rowSting);
             });
         }
@@ -87,7 +116,8 @@ namespace Liteson
 
         public List<TRow> Read<TRow>(string tableName) where TRow : class, new()
         {
-            return Utils.LockedFunc(_ioLock, () =>
+            var tableLock = GetTableLock(tableName);
+            return Utils.LockedFunc(tableLock, () =>
             {
                 var fromCache = _cacheProvider.Read<TRow>(tableName);
                 if (fromCache != null && fromCache.Any()) return fromCache;
@@ -100,15 +130,46 @@ namespace Liteson
             });
         }
 
+        public async Task<List<TRow>> ReadAsync<TRow>(string tableName) where TRow : class, new()
+        {
+            var tableLock = GetTableLock(tableName);
+            return await Utils.LockedFuncAsync(tableLock, tableName, async tn =>
+            {
+                var fromCache = await _cacheProvider.ReadAsync<TRow>(tn);
+                if (fromCache != null && fromCache.Any()) return fromCache;
+                var tableFilePath = GetTableFilePath(tn);
+                if (!CheckTableExists(tableFilePath)) return null;
+                var tableText = File.ReadAllText(tableFilePath);
+                var result = string.IsNullOrWhiteSpace(tableText) ? null : _serializer.DeserializeRows<TRow>(tableText);
+                await _cacheProvider.PutAsync(result, tn);
+                return result;
+            });
+        }
+
         public void BulkInsert<TRow>(string tableName, List<TRow> rows) where TRow : class, new()
         {
-            Utils.LockedAction(_ioLock,() =>
+            var tableLock = GetTableLock(tableName);
+            Utils.LockedAction(tableLock,() =>
             {
                 if (rows == null || !rows.Any()) return;
                 var rowsString = _serializer.SerializeRows(rows);
                 if (string.IsNullOrWhiteSpace(rowsString)) return;
                 var tableFilePath = GetTableFilePath(tableName);
                 _cacheProvider.BulkInsert(tableName, rows);
+                File.AppendAllText(tableFilePath, rowsString);
+            });
+        }
+
+        public async Task BulkInsertAsync<TRow>(string tableName, List<TRow> rows) where TRow : class, new()
+        {
+            var tableLock = GetTableLock(tableName);
+            await Utils.LockedActionAsync(tableLock, async () =>
+            {
+                if (rows == null || !rows.Any()) return;
+                var rowsString = _serializer.SerializeRows(rows);
+                if (string.IsNullOrWhiteSpace(rowsString)) return;
+                var tableFilePath = GetTableFilePath(tableName);
+                await _cacheProvider.BulkInsertAsync(tableName, rows);
                 File.AppendAllText(tableFilePath, rowsString);
             });
         }

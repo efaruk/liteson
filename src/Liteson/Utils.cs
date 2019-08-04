@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Liteson
 {
     internal class Utils
     {
-
         private static readonly Dictionary<Type, PrimitiveTypeCode> TypeCodeMap =
             new Dictionary<Type, PrimitiveTypeCode>
             {
@@ -50,6 +51,78 @@ namespace Liteson
                 { typeof(string), PrimitiveTypeCode.String },
                 { typeof(byte[]), PrimitiveTypeCode.Bytes },
             };
+
+        public static void LockedAction(SemaphoreSlim semaphoreLock, Action action, Action<Exception> exceptionHandleAction = null)
+        {
+            try
+            {
+                semaphoreLock.Wait();
+                action();
+            }
+            catch (Exception ex)
+            {
+                exceptionHandleAction?.Invoke(ex);
+            }
+            finally
+            {
+                semaphoreLock.Release();
+            }
+        }
+
+        public static async Task LockedActionAsync(SemaphoreSlim semaphoreLock, Action action, Action<Exception> exceptionHandleAction = null)
+        {
+            try
+            {
+                await semaphoreLock.WaitAsync();
+                await Task.Run(action);
+            }
+            catch (Exception ex)
+            {
+                exceptionHandleAction?.Invoke(ex);
+            }
+            finally
+            {
+                semaphoreLock.Release();
+            }
+        }
+
+        public static TResult LockedFunc<TResult>(SemaphoreSlim semaphoreLock, Func<TResult> func, Action<Exception> exceptionHandleAction = null) where TResult: class
+        {
+            TResult result = null;
+            try
+            {
+                semaphoreLock.Wait();
+                result = func();
+            }
+            catch (Exception ex)
+            {
+                exceptionHandleAction?.Invoke(ex);
+            }
+            finally
+            {
+                semaphoreLock.Release();
+            }
+            return result;
+        }
+
+        public static async Task<TResult> LockedFuncAsync<TResult>(SemaphoreSlim semaphoreLock, Func<TResult> func, Action<Exception> exceptionHandleAction = null) where TResult: class
+        {
+            TResult result = null;
+            try
+            {
+                await semaphoreLock.WaitAsync();
+                result = await Task.Run(func);
+            }
+            catch (Exception ex)
+            {
+                exceptionHandleAction?.Invoke(ex);
+            }
+            finally
+            {
+                semaphoreLock.Release();
+            }
+            return result;
+        }
 
         public static PrimitiveTypeCode GetTypeCode<T>(T obj)
         {

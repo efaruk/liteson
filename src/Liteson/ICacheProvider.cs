@@ -1,11 +1,13 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
 
 namespace Liteson
 {
-    public interface ITextDatabase
+    public interface ICacheProvider
     {
-        void CreateTable(string tableName);
-        void DropTable(string tableName);
+        void PutTable(string tableName);
+        void DeleteTable(string tableName);
         void Insert<TRow>(string tableName, TRow row) where TRow: class, new();
         List<TRow> Read<TRow>(string tableName) where TRow: class, new();
         void Append<TRow>(string tableName, List<TRow> rowList) where TRow: class, new();

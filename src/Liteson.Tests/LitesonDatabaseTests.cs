@@ -186,8 +186,8 @@ namespace Liteson.Tests
         public void TestAppendNRead()
         {
             _database.DropTable(TableName);
-            _database.AppendTable(TableName, SomeClassList);
-            var table = _database.ReadTable<SomeClass>(TableName);
+            _database.Append(TableName, SomeClassList);
+            var table = _database.Read<SomeClass>(TableName);
             for (int i = 0; i < table.Count; i++)
             {
                 var row = table[i];

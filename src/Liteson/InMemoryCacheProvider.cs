@@ -37,7 +37,7 @@ namespace Liteson
 
         public async Task PutAsync<TRow>(List<TRow> table, string tableName, SemaphoreSlim operationLock = null) where TRow : class, new()
         {
-            await Task.Run(() => Put(table, tableName));
+            await Task.Run(() => Put(table, tableName, operationLock));
         }
 
         public void Drop(string tableName, SemaphoreSlim operationLock = null)
@@ -52,31 +52,32 @@ namespace Liteson
 
         public async Task DropAsync(string tableName, SemaphoreSlim operationLock = null)
         {
-            await Task.Run(() => Drop(tableName));
+            await Task.Run(() => Drop(tableName, operationLock));
         }
 
         public void Insert<TRow>(string tableName, TRow row, SemaphoreSlim operationLock = null) where TRow : class, new()
         {
-            var table = Read<TRow>(tableName) ?? new List<TRow>(LitesonDatabase.DefaultTableRowCapacity);
             var cacheItemLock = GetCacheItemLock(tableName);
             Utils.LockedAction(cacheItemLock, () =>
             {
+                var table = Read<TRow>(tableName, operationLock) ?? new List<TRow>(LitesonDatabase.DefaultTableRowCapacity);
                 table.Add(row);
             }, operationLock);
         }
 
         public async Task InsertAsync<TRow>(string tableName, TRow row, SemaphoreSlim operationLock = null) where TRow : class, new()
         {
-            var table = await ReadAsync<TRow>(tableName);
-            if (table == null)
-            {
-                table = new List<TRow>(LitesonDatabase.DefaultTableRowCapacity);
-                Put(table, tableName);
-            }
+            
             var cacheItemLock = GetCacheItemLock(tableName);
-            Utils.LockedAction(cacheItemLock, () =>
+            await Utils.LockedActionAsync(cacheItemLock, async () =>
             {
-                table.Add(row);
+                var table = await ReadAsync<TRow>(tableName, operationLock);
+                if (table == null)
+                {
+                    table = new List<TRow>(LitesonDatabase.DefaultTableRowCapacity);
+                    await PutAsync(table, tableName, operationLock);
+                }
+                await Task.Run(() => table.Add(row));
             }, operationLock);
         }
 
@@ -94,36 +95,36 @@ namespace Liteson
 
         public async Task<List<TRow>> ReadAsync<TRow>(string tableName, SemaphoreSlim operationLock = null) where TRow : class, new()
         {
-            return await Task.Run(() => Read<TRow>(tableName));
+            return await Task.Run(() => Read<TRow>(tableName, operationLock));
         }
 
         public void BulkInsert<TRow>(string tableName, List<TRow> rows, SemaphoreSlim operationLock = null) where TRow : class, new()
         {
-            var table = Read<TRow>(tableName);
-            if (table == null)
-            {
-                table = new List<TRow>(LitesonDatabase.DefaultTableRowCapacity);
-                Put(table, tableName);
-            }
             var cacheItemLock = GetCacheItemLock(tableName);
             Utils.LockedAction(cacheItemLock, () =>
             {   
+                var table = Read<TRow>(tableName, operationLock);
+                if (table == null)
+                {
+                    table = new List<TRow>(LitesonDatabase.DefaultTableRowCapacity);
+                    Put(table, tableName, operationLock);
+                }
                 table.AddRange(rows);
             }, operationLock);
         }
 
         public async Task BulkInsertAsync<TRow>(string tableName, List<TRow> rows, SemaphoreSlim operationLock = null) where TRow : class, new()
         {
-            var table = await ReadAsync<TRow>(tableName);
-            if (table == null)
-            {
-                table = new List<TRow>(LitesonDatabase.DefaultTableRowCapacity);
-                await PutAsync(table, tableName);
-            }
             var cacheItemLock = GetCacheItemLock(tableName);
-            await Utils.LockedActionAsync(cacheItemLock, () =>
+            await Utils.LockedActionAsync(cacheItemLock, async () =>
             {
-                table.AddRange(rows);
+                var table = await ReadAsync<TRow>(tableName, operationLock);
+                if (table == null)
+                {
+                    table = new List<TRow>(LitesonDatabase.DefaultTableRowCapacity);
+                    await PutAsync(table, tableName, operationLock);
+                }
+                await Task.Run(() => table.AddRange(rows));
             }, operationLock);
         }
 

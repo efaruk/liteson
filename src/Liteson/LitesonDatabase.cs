@@ -103,8 +103,12 @@ namespace Liteson
                 var rowSting = _serializer.SerializeRow(row);
                 if (string.IsNullOrWhiteSpace(rowSting)) return;
                 var tableFilePath = GetTableFilePath(tableName);
-                await _cacheProvider.InsertAsync(tableName, row);
-                File.AppendAllText(tableFilePath, rowSting);
+#pragma warning disable 4014
+                // Fire And Forget
+                _cacheProvider.InsertAsync(tableName, row);
+                // Fire And Forget
+                Task.Run(() => File.AppendAllText(tableFilePath, rowSting));
+#pragma warning restore 4014
             });
         }
 
@@ -125,6 +129,7 @@ namespace Liteson
                 if (!CheckTableExists(tableFilePath)) return null;
                 var tableText = File.ReadAllText(tableFilePath);
                 var result = string.IsNullOrWhiteSpace(tableText) ? null : _serializer.DeserializeRows<TRow>(tableText);
+                if (result == null) return null;
                 _cacheProvider.Put(result, tableName);
                 return result;
             });
@@ -141,7 +146,11 @@ namespace Liteson
                 if (!CheckTableExists(tableFilePath)) return null;
                 var tableText = File.ReadAllText(tableFilePath);
                 var result = string.IsNullOrWhiteSpace(tableText) ? null : _serializer.DeserializeRows<TRow>(tableText);
-                await _cacheProvider.PutAsync(result, tn);
+                if (result == null) return null;
+#pragma warning disable 4014
+                // Fire And Forget
+                _cacheProvider.PutAsync(result, tn);
+#pragma warning restore 4014
                 return result;
             });
         }
@@ -169,7 +178,10 @@ namespace Liteson
                 var rowsString = _serializer.SerializeRows(rows);
                 if (string.IsNullOrWhiteSpace(rowsString)) return;
                 var tableFilePath = GetTableFilePath(tableName);
-                await _cacheProvider.BulkInsertAsync(tableName, rows);
+#pragma warning disable 4014
+                // Fire And Forget
+                _cacheProvider.BulkInsertAsync(tableName, rows);
+#pragma warning restore 4014
                 File.AppendAllText(tableFilePath, rowsString);
             });
         }
